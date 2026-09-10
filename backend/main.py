@@ -1,16 +1,19 @@
-from fastapi import FastAPI
-from sqlalchemy import text
-from database import engine, Base, SessionLocal
+from fastapi import FastAPI, Depends
+from sqlalchemy.orm import Session
+
+from database import engine, Base, get_db
 from models.patient import Patient
+from schemas.patient import PatientCreate
+
 
 Base.metadata.create_all(bind=engine)
+
 
 app = FastAPI(
     title="QueueLess API",
     description="Intelligent Hospital Queue & Patient Flow System",
     version="1.0.0"
 )
-
 
 @app.get("/")
 def home():
@@ -20,68 +23,27 @@ def home():
     }
 
 
-@app.get("/database-test")
-def database_test():
-    try:
-        with engine.connect() as connection:
-            connection.execute(text("SELECT 1"))
-
-        return {
-            "message": "Database connection is working",
-            "status": "success"
-        }
-
-    except Exception as e:
-        return {
-            "message": "Database connection failed",
-            "status": "error",
-            "error": str(e)
-        }
 @app.post("/patients")
 def create_patient(
-    name: str,
-    age: int,
-    phone: str,
-    department: str,
-    token_number: int,
-    symptoms: str,
-    status: str = "waiting"
+    patient: PatientCreate,
+    db: Session = Depends(get_db)
 ):
-    db = SessionLocal()
+    new_patient = Patient(
+        name=patient.name,
+        phone=patient.phone,
+        age=patient.age
+    )
 
-    try:
-        patient = Patient(
-            name=name,
-            age=age,
-            phone=phone,
-            department=department,
-            token_number=token_number,
-            symptoms=symptoms,
-            status=status
-        )
+    db.add(new_patient)
+    db.commit()
+    db.refresh(new_patient)
 
-        db.add(patient)
-        db.commit()
-        db.refresh(patient)
-
-        return {
-            "message": "Patient registered successfully",
-            "patient_id": patient.id,
-            "token_number": patient.token_number,
-            "status": patient.status
+    return {
+        "message": "Patient registered successfully",
+        "patient": {
+            "id": new_patient.id,
+            "name": new_patient.name,
+            "phone": new_patient.phone,
+            "age": new_patient.age
         }
-
-    finally:
-        db.close()
-
-@app.get("/patients")
-def get_patients():
-    db = SessionLocal()
-
-    try:
-        patients = db.query(Patient).all()
-
-        return patients
-
-    finally:
-        db.close()
+    }
