@@ -7,5 +7,9 @@ class Patient(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    phone = Column(String, unique=True, nullable=False)
     age = Column(Integer, nullable=False)
+    phone = Column(String, nullable=False)
+    department = Column(String, nullable=False)
+    token_number = Column(Integer, nullable=False)
+    status = Column(String, nullable=True)
+    symptoms = Column(String, nullable=True)
