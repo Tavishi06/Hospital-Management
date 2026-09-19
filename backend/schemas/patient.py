@@ -11,10 +11,17 @@ class Department(str, Enum):
     neurology = "neurology"
     general = "general"
 
+class Priority(str, Enum):
+    emergency = "emergency"
+    elderly = "elderly"
+    pregnant = "pregnant"
+    follow_up = "follow_up"
+    regular = "regular"
+
 class PatientCreate(BaseModel):
     name: str
     age: int
     phone: str = Field(..., pattern=r"^[0-9]{10}$")
     department: Department
     symptoms: str | None = None
-    priority: str | None = None
+    priority: Priority | None = None

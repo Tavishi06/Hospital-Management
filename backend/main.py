@@ -1,10 +1,10 @@
 from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from database import engine, Base, get_db
 from models.patient import Patient
 from schemas.patient import PatientCreate
-
 
 Base.metadata.create_all(bind=engine)
 
@@ -13,6 +13,17 @@ app = FastAPI(
     title="QueueLess API",
     description="Intelligent Hospital Queue & Patient Flow System",
     version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -94,24 +105,39 @@ def call_patient(
 
     return patient
 
+PRIORITY_ORDER = {
+    "emergency": 1,
+    "elderly": 2,
+    "pregnant": 2,
+    "follow_up": 3,
+    "regular": 4
+}
 
 @app.put("/patients/call-next")
 def call_next_patient(
     department: str,
     db: Session = Depends(get_db)
 ):
-    patient = (
+    patients = (
         db.query(Patient)
         .filter(
             Patient.department == department,
             Patient.status == "waiting"
         )
-        .order_by(Patient.token_number.asc())
-        .first()
+        .all()
     )
 
-    if not patient:
+    if not patients:
         return {"message": "No waiting patients"}
+
+    patients.sort(
+        key=lambda patient: (
+            PRIORITY_ORDER.get(patient.priority, 4),
+            patient.token_number
+        )
+    )
+
+    patient = patients[0]
 
     patient.status = "called"
 
@@ -119,4 +145,3 @@ def call_next_patient(
     db.refresh(patient)
 
     return patient
-
