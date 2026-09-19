@@ -13,3 +13,4 @@ class Patient(Base):
     token_number = Column(Integer, nullable=False)
     status = Column(String, nullable=True)
     symptoms = Column(String, nullable=True)
+    priority = Column(String, nullable=True)

@@ -48,7 +48,8 @@ def create_patient(
         department=patient.department,
         token_number=next_token,
         status="waiting",
-        symptoms=patient.symptoms
+        symptoms=patient.symptoms,
+        priority=patient.priority
     )
 
     db.add(new_patient)
