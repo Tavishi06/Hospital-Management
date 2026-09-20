@@ -1,88 +1,100 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
-  // ================= FORM STATE =================
+  const router = useRouter();
+
+  const [verifiedPhone, setVerifiedPhone] = useState("");
 
   const [name, setName] = useState("");
   const [age, setAge] = useState("");
-  const [phone, setPhone] = useState("");
   const [department, setDepartment] = useState("");
   const [priority, setPriority] = useState("regular");
   const [symptoms, setSymptoms] = useState("");
 
-  // ================= VALIDATION + SERVER STATE =================
+  const [errors, setErrors] = useState<{
+    name?: string;
+    age?: string;
+    department?: string;
+  }>({});
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  // Shows loading state while request is being sent
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Stores error coming from frontend/backend connection
   const [serverError, setServerError] = useState("");
 
+  // --------------------------------------------------
+  // CHECK MOBILE VERIFICATION
+  // --------------------------------------------------
 
-  // ================= VALIDATION =================
+  useEffect(() => {
+    const phoneVerified =
+      sessionStorage.getItem("phoneVerified");
+
+    const phone =
+      sessionStorage.getItem("verifiedPhone");
+
+    if (phoneVerified !== "true" || !phone) {
+      router.replace("/verify");
+      return;
+    }
+
+    setVerifiedPhone(phone);
+  }, [router]);
+
+  // --------------------------------------------------
+  // VALIDATION
+  // --------------------------------------------------
 
   const validateForm = () => {
-    const newErrors: Record<string, string> = {};
+    const newErrors: {
+      name?: string;
+      age?: string;
+      department?: string;
+    } = {};
 
-    // Name validation
     if (!name.trim()) {
-      newErrors.name = "Full name is required.";
+      newErrors.name = "Please enter your name.";
     }
 
-    // Age validation
     if (!age) {
-      newErrors.age = "Age is required.";
-    } else if (Number(age) < 1 || Number(age) > 120) {
-      newErrors.age = "Please enter an age between 1 and 120.";
+      newErrors.age = "Please enter your age.";
+    } else if (
+      Number(age) < 1 ||
+      Number(age) > 120
+    ) {
+      newErrors.age = "Please enter a valid age.";
     }
 
-    // Phone validation
-    if (!phone) {
-      newErrors.phone = "Phone number is required.";
-    } else if (!/^[0-9]{10}$/.test(phone)) {
-      newErrors.phone =
-        "Phone number must contain exactly 10 digits.";
-    }
-
-    // Department validation
     if (!department) {
-      newErrors.department = "Please select a department.";
+      newErrors.department =
+        "Please select a department.";
     }
 
-    // Save validation errors
     setErrors(newErrors);
 
-    // Form is valid if there are no errors
     return Object.keys(newErrors).length === 0;
   };
 
-
-  // ================= FORM SUBMIT =================
+  // --------------------------------------------------
+  // SUBMIT REGISTRATION
+  // --------------------------------------------------
 
   const handleSubmit = async (
     e: React.FormEvent<HTMLFormElement>
   ) => {
     e.preventDefault();
 
-    // First validate frontend form
     const isValid = validateForm();
 
     if (!isValid) {
       return;
     }
 
-    // Remove previous backend error
     setServerError("");
-
-    // Start loading
     setIsSubmitting(true);
 
     try {
-      // Send patient data to FastAPI backend
       const response = await fetch(
         "http://127.0.0.1:8000/patients",
         {
@@ -95,7 +107,7 @@ export default function RegisterPage() {
           body: JSON.stringify({
             name: name.trim(),
             age: Number(age),
-            phone: phone,
+            phone: verifiedPhone,
             department: department,
             priority: priority,
             symptoms: symptoms.trim() || null,
@@ -103,327 +115,267 @@ export default function RegisterPage() {
         }
       );
 
-      // Check whether backend returned an error
       if (!response.ok) {
-        throw new Error("Failed to create patient.");
+        const errorData =
+          await response.json().catch(() => null);
+
+        console.error(
+          "Backend error:",
+          errorData
+        );
+
+        throw new Error(
+          `Backend returned status ${response.status}`
+        );
       }
 
-      // Convert backend response into JavaScript object
       const data = await response.json();
 
-      // For now, display the backend response in console
-      console.log("Patient created successfully:");
-      console.log(data);
-
-      /*
-        Example response:
-
-        {
-          id: 4,
-          name: "Tavishi",
-          age: 20,
-          phone: "9876543210",
-          department: "cardiology",
-          token_number: 1,
-          status: "waiting",
-          symptoms: "Chest discomfort",
-          priority: "regular"
-        }
-
-        Later we will use this token_number
-        to create the Queue Tracking page.
-      */
-
-      alert(
-        `Registration successful! Your token number is ${data.token_number}.`
+      console.log(
+        "Patient created successfully:",
+        data
       );
 
+      router.push(`/queue/${data.id}`);
+
     } catch (error) {
-      console.error("Registration error:", error);
+      console.error(
+        "Registration error:",
+        error
+      );
 
       setServerError(
-        "Unable to create your token. Please try again."
+        "Unable to create your token. Please make sure the QueueLess server is running."
       );
 
     } finally {
-      // Stop loading whether request succeeds or fails
       setIsSubmitting(false);
     }
   };
 
-
-  // ================= PAGE =================
+  // --------------------------------------------------
+  // PAGE
+  // --------------------------------------------------
 
   return (
-    <main className="relative min-h-screen bg-[#f6f9fc] px-6 py-10 text-slate-900">
+    <main className="min-h-screen bg-[#f6f9fc] px-6 py-10">
 
-      {/* ================= BACK BUTTON ================= */}
+      <div className="mx-auto max-w-3xl">
 
-      <button
-        type="button"
-        onClick={() => {
-          window.location.href = "/";
-        }}
-        className="absolute left-6 top-6 text-sm font-semibold text-slate-500 transition hover:text-blue-600"
-      >
-        ← Back to QueueLess
-      </button>
-
-
-      {/* ================= PAGE CONTENT ================= */}
-
-      <div className="mx-auto max-w-3xl pt-10">
-
-        {/* ================= PAGE HEADER ================= */}
+        {/* HEADER */}
 
         <div className="mb-8">
 
           <p className="text-sm font-bold uppercase tracking-widest text-blue-600">
-            PATIENT REGISTRATION
+            QUEUELESS
           </p>
 
           <h1 className="mt-2 text-4xl font-extrabold tracking-tight text-slate-950">
-            Get your digital token
+            Get Your Token
           </h1>
 
           <p className="mt-3 text-slate-500">
-            Enter your details below to join the hospital queue.
+            Your mobile number has been verified.
+            Complete your details to join the queue.
           </p>
 
         </div>
 
+        {/* REGISTRATION CARD */}
 
-        {/* ================= REGISTRATION CARD ================= */}
+        <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-xl shadow-slate-200/50">
 
-        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/50 sm:p-8">
+          {/* VERIFIED MOBILE */}
 
-          {/* ================= CARD HEADER ================= */}
+          <div className="border-b border-slate-100 bg-emerald-50 px-6 py-5 sm:px-8">
 
-          <div className="mb-8 border-b border-slate-100 pb-6">
+            <div className="flex items-center gap-3">
 
-            <h2 className="text-xl font-bold text-slate-900">
-              Patient Details
-            </h2>
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                ✓
+              </div>
 
-            <p className="mt-1 text-sm text-slate-500">
-              Please provide accurate information for your visit.
-            </p>
+              <div>
+
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-600">
+                  Mobile Verified
+                </p>
+
+                <p className="mt-1 text-sm font-semibold text-slate-800">
+                  +91 {verifiedPhone}
+                </p>
+
+              </div>
+
+            </div>
 
           </div>
 
-
-          {/* ================= SERVER ERROR ================= */}
-
-          {serverError && (
-            <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-              {serverError}
-            </div>
-          )}
-
-
-          {/* ================= FORM ================= */}
+          {/* FORM */}
 
           <form
-            className="space-y-6"
             onSubmit={handleSubmit}
+            className="space-y-6 p-6 sm:p-8"
           >
 
-            {/* ================= FULL NAME ================= */}
+            {/* NAME */}
 
             <div>
 
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
+              <label
+                htmlFor="name"
+                className="mb-2 block text-sm font-semibold text-slate-700"
+              >
                 Full Name
               </label>
 
               <input
+                id="name"
                 type="text"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) =>
+                  setName(e.target.value)
+                }
                 placeholder="Enter your full name"
-                className={`w-full rounded-xl border bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:ring-4 focus:ring-blue-500/10 ${
+                className={`w-full rounded-xl border ${
                   errors.name
-                    ? "border-red-400 focus:border-red-500"
-                    : "border-slate-300 focus:border-blue-500"
-                }`}
+                    ? "border-red-400"
+                    : "border-slate-200"
+                } bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100`}
               />
 
               {errors.name && (
-                <p className="mt-2 text-sm text-red-500">
+                <p className="mt-1.5 text-xs font-medium text-red-500">
                   {errors.name}
                 </p>
               )}
 
             </div>
 
-
-            {/* ================= AGE + PHONE ================= */}
-
-            <div className="grid gap-6 sm:grid-cols-2">
-
-              {/* AGE */}
-
-              <div>
-
-                <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Age
-                </label>
-
-                <input
-                  type="number"
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  placeholder="Enter your age"
-                  min="1"
-                  max="120"
-                  className={`w-full rounded-xl border bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:ring-4 focus:ring-blue-500/10 ${
-                    errors.age
-                      ? "border-red-400 focus:border-red-500"
-                      : "border-slate-300 focus:border-blue-500"
-                  }`}
-                />
-
-                {errors.age && (
-                  <p className="mt-2 text-sm text-red-500">
-                    {errors.age}
-                  </p>
-                )}
-
-              </div>
-
-
-              {/* PHONE */}
-
-              <div>
-
-                <label className="mb-2 block text-sm font-semibold text-slate-700">
-                  Phone Number
-                </label>
-
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="10-digit mobile number"
-                  maxLength={10}
-                  inputMode="numeric"
-                  className={`w-full rounded-xl border bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:ring-4 focus:ring-blue-500/10 ${
-                    errors.phone
-                      ? "border-red-400 focus:border-red-500"
-                      : "border-slate-300 focus:border-blue-500"
-                  }`}
-                />
-
-                {errors.phone && (
-                  <p className="mt-2 text-sm text-red-500">
-                    {errors.phone}
-                  </p>
-                )}
-
-              </div>
-
-            </div>
-
-
-            {/* ================= DEPARTMENT ================= */}
+            {/* AGE */}
 
             <div>
 
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
+              <label
+                htmlFor="age"
+                className="mb-2 block text-sm font-semibold text-slate-700"
+              >
+                Age
+              </label>
+
+              <input
+                id="age"
+                type="number"
+                min="1"
+                max="120"
+                value={age}
+                onChange={(e) =>
+                  setAge(e.target.value)
+                }
+                placeholder="Enter age"
+                className={`w-full rounded-xl border ${
+                  errors.age
+                    ? "border-red-400"
+                    : "border-slate-200"
+                } bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100`}
+              />
+
+              {errors.age && (
+                <p className="mt-1.5 text-xs font-medium text-red-500">
+                  {errors.age}
+                </p>
+              )}
+
+            </div>
+
+            {/* DEPARTMENT */}
+
+            <div>
+
+              <label
+                htmlFor="department"
+                className="mb-2 block text-sm font-semibold text-slate-700"
+              >
                 Department
               </label>
 
               <select
+                id="department"
                 value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                className={`w-full rounded-xl border bg-white px-4 py-3 outline-none transition focus:ring-4 focus:ring-blue-500/10 ${
-                  department
-                    ? "text-slate-900"
-                    : "text-slate-400"
-                } ${
+                onChange={(e) =>
+                  setDepartment(e.target.value)
+                }
+                className={`w-full rounded-xl border ${
                   errors.department
-                    ? "border-red-400 focus:border-red-500"
-                    : "border-slate-300 focus:border-blue-500"
-                }`}
+                    ? "border-red-400"
+                    : "border-slate-200"
+                } bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100`}
               >
 
-                <option value="" disabled>
+                <option value="">
                   Select department
                 </option>
 
-                <option
-                  value="general"
-                  className="text-slate-900"
-                >
+                <option value="general">
                   General
                 </option>
 
-                <option
-                  value="cardiology"
-                  className="text-slate-900"
-                >
-                  Cardiology
-                </option>
-
-                <option
-                  value="dental"
-                  className="text-slate-900"
-                >
+                <option value="dental">
                   Dental
                 </option>
 
-                <option
-                  value="gastro"
-                  className="text-slate-900"
-                >
-                  Gastroenterology
+                <option value="cardiology">
+                  Cardiology
                 </option>
 
-                <option
-                  value="orthopedics"
-                  className="text-slate-900"
-                >
+                <option value="gastro">
+                  Gastro
+                </option>
+
+                <option value="orthopedics">
                   Orthopedics
                 </option>
 
-                <option
-                  value="neurology"
-                  className="text-slate-900"
-                >
+                <option value="neurology">
                   Neurology
                 </option>
 
               </select>
 
               {errors.department && (
-                <p className="mt-2 text-sm text-red-500">
+                <p className="mt-1.5 text-xs font-medium text-red-500">
                   {errors.department}
                 </p>
               )}
 
             </div>
 
-
-            {/* ================= PRIORITY ================= */}
+            {/* PRIORITY */}
 
             <div>
 
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
-                Visit Priority
+              <label
+                htmlFor="priority"
+                className="mb-2 block text-sm font-semibold text-slate-700"
+              >
+                Priority
               </label>
 
               <select
+                id="priority"
                 value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                onChange={(e) =>
+                  setPriority(e.target.value)
+                }
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
               >
 
                 <option value="regular">
                   Regular
                 </option>
 
-                <option value="follow_up">
-                  Follow-up
+                <option value="emergency">
+                  Emergency
                 </option>
 
                 <option value="elderly">
@@ -434,72 +386,87 @@ export default function RegisterPage() {
                   Pregnant
                 </option>
 
-                <option value="emergency">
-                  Emergency
+                <option value="follow_up">
+                  Follow-up
                 </option>
 
               </select>
 
-              <p className="mt-2 text-xs text-slate-400">
-                Priority should follow the hospital&apos;s
-                authorized workflow.
+              <p className="mt-2 text-xs leading-5 text-slate-400">
+                Priority should follow the hospital's
+                authorized workflow rules.
               </p>
 
             </div>
 
-
-            {/* ================= SYMPTOMS ================= */}
+            {/* SYMPTOMS */}
 
             <div>
 
-              <label className="mb-2 block text-sm font-semibold text-slate-700">
-
-                Symptoms / Visit Reason
-
+              <label
+                htmlFor="symptoms"
+                className="mb-2 block text-sm font-semibold text-slate-700"
+              >
+                Symptoms
                 <span className="ml-1 font-normal text-slate-400">
                   (Optional)
                 </span>
-
               </label>
 
               <textarea
+                id="symptoms"
                 value={symptoms}
-                onChange={(e) => setSymptoms(e.target.value)}
-                placeholder="Briefly describe the reason for your visit"
+                onChange={(e) =>
+                  setSymptoms(e.target.value)
+                }
                 rows={4}
-                className="w-full resize-none rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                placeholder="Briefly describe your symptoms"
+                className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
               />
 
             </div>
 
+            {/* SERVER ERROR */}
 
-            {/* ================= SUBMIT ================= */}
+            {serverError && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+
+                <p className="text-sm font-medium text-red-600">
+                  {serverError}
+                </p>
+
+              </div>
+            )}
+
+            {/* SUBMIT */}
 
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="w-full rounded-xl bg-blue-600 px-6 py-3.5 font-bold text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={
+                isSubmitting || !verifiedPhone
+              }
+              className="w-full rounded-xl bg-blue-600 px-6 py-3.5 text-sm font-bold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
+
               {isSubmitting
-                ? "Creating your token..."
-                : "Get My Digital Token →"}
+                ? "Creating Your Token..."
+                : "Get My Token"}
+
             </button>
+
+            <p className="text-center text-xs text-slate-400">
+              Your verified mobile number will be linked
+              to this queue registration.
+            </p>
 
           </form>
 
         </div>
 
+        {/* FOOTER */}
 
-        {/* ================= SECURITY NOTE ================= */}
-
-        <div className="mt-5 flex items-center justify-center gap-2 text-xs text-slate-400">
-
-          <span>🔒</span>
-
-          <span>
-            Your information is securely handled by QueueLess.
-          </span>
-
+        <div className="mt-5 text-center text-xs text-slate-400">
+          🔒 Your information is securely handled by QueueLess.
         </div>
 
       </div>

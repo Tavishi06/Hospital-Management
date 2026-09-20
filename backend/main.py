@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
@@ -6,14 +6,28 @@ from database import engine, Base, get_db
 from models.patient import Patient
 from schemas.patient import PatientCreate
 
+
+# --------------------------------------------------
+# DATABASE
+# --------------------------------------------------
+
 Base.metadata.create_all(bind=engine)
 
+
+# --------------------------------------------------
+# FASTAPI APP
+# --------------------------------------------------
 
 app = FastAPI(
     title="QueueLess API",
     description="Intelligent Hospital Queue & Patient Flow System",
     version="1.0.0"
 )
+
+
+# --------------------------------------------------
+# CORS
+# --------------------------------------------------
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,6 +41,25 @@ app.add_middleware(
 )
 
 
+# --------------------------------------------------
+# CONSTANTS
+# --------------------------------------------------
+
+AVERAGE_CONSULTATION_TIME = 8
+
+PRIORITY_ORDER = {
+    "emergency": 1,
+    "elderly": 2,
+    "pregnant": 2,
+    "follow_up": 3,
+    "regular": 4
+}
+
+
+# --------------------------------------------------
+# HOME
+# --------------------------------------------------
+
 @app.get("/")
 def home():
     return {
@@ -35,15 +68,24 @@ def home():
     }
 
 
+# --------------------------------------------------
+# CREATE PATIENT
+# --------------------------------------------------
+
 @app.post("/patients")
 def create_patient(
     patient: PatientCreate,
     db: Session = Depends(get_db)
 ):
+
     last_patient = (
         db.query(Patient)
-        .filter(Patient.department == patient.department)
-        .order_by(Patient.token_number.desc())
+        .filter(
+            Patient.department == patient.department
+        )
+        .order_by(
+            Patient.token_number.desc()
+        )
         .first()
     )
 
@@ -70,33 +112,104 @@ def create_patient(
     return new_patient
 
 
+# --------------------------------------------------
+# GET ALL PATIENTS
+# --------------------------------------------------
+
 @app.get("/patients")
 def get_patients(
     department: str | None = None,
     db: Session = Depends(get_db)
 ):
+
     query = db.query(Patient)
 
     if department:
-        query = query.filter(Patient.department == department)
+        query = query.filter(
+            Patient.department == department
+        )
 
-    patients = query.order_by(Patient.token_number.asc()).all()
+    patients = (
+        query
+        .order_by(Patient.token_number.asc())
+        .all()
+    )
 
     return patients
-    patients = db.query(Patient).all()
 
-    return patients
 
+# --------------------------------------------------
+# FIND PATIENT BY PHONE
+# --------------------------------------------------
+
+@app.get("/patients/by-phone/{phone}")
+def get_patient_by_phone(
+    phone: str,
+    db: Session = Depends(get_db)
+):
+
+    patient = (
+        db.query(Patient)
+        .filter(Patient.phone == phone)
+        .order_by(Patient.id.desc())
+        .first()
+    )
+
+    if not patient:
+        raise HTTPException(
+            status_code=404,
+            detail="No patient found with this mobile number"
+        )
+
+    return patient
+
+
+# --------------------------------------------------
+# GET SINGLE PATIENT
+# --------------------------------------------------
+
+@app.get("/patients/{patient_id}")
+def get_patient(
+    patient_id: int,
+    db: Session = Depends(get_db)
+):
+
+    patient = (
+        db.query(Patient)
+        .filter(Patient.id == patient_id)
+        .first()
+    )
+
+    if not patient:
+        raise HTTPException(
+            status_code=404,
+            detail="Patient not found"
+        )
+
+    return patient
+
+
+# --------------------------------------------------
+# CALL SPECIFIC PATIENT
+# --------------------------------------------------
 
 @app.put("/patients/{patient_id}/call")
 def call_patient(
     patient_id: int,
     db: Session = Depends(get_db)
 ):
-    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+
+    patient = (
+        db.query(Patient)
+        .filter(Patient.id == patient_id)
+        .first()
+    )
 
     if not patient:
-        return {"message": "Patient not found"}
+        raise HTTPException(
+            status_code=404,
+            detail="Patient not found"
+        )
 
     patient.status = "called"
 
@@ -105,19 +218,17 @@ def call_patient(
 
     return patient
 
-PRIORITY_ORDER = {
-    "emergency": 1,
-    "elderly": 2,
-    "pregnant": 2,
-    "follow_up": 3,
-    "regular": 4
-}
+
+# --------------------------------------------------
+# CALL NEXT PATIENT
+# --------------------------------------------------
 
 @app.put("/patients/call-next")
 def call_next_patient(
     department: str,
     db: Session = Depends(get_db)
 ):
+
     patients = (
         db.query(Patient)
         .filter(
@@ -128,11 +239,16 @@ def call_next_patient(
     )
 
     if not patients:
-        return {"message": "No waiting patients"}
+        return {
+            "message": "No waiting patients"
+        }
 
     patients.sort(
         key=lambda patient: (
-            PRIORITY_ORDER.get(patient.priority, 4),
+            PRIORITY_ORDER.get(
+                patient.priority,
+                4
+            ),
             patient.token_number
         )
     )
@@ -145,3 +261,93 @@ def call_next_patient(
     db.refresh(patient)
 
     return patient
+
+
+# --------------------------------------------------
+# QUEUE STATUS
+# --------------------------------------------------
+
+@app.get("/patients/{patient_id}/queue-status")
+def get_queue_status(
+    patient_id: int,
+    db: Session = Depends(get_db)
+):
+
+    patient = (
+        db.query(Patient)
+        .filter(Patient.id == patient_id)
+        .first()
+    )
+
+    if not patient:
+        raise HTTPException(
+            status_code=404,
+            detail="Patient not found"
+        )
+
+    waiting_patients = (
+        db.query(Patient)
+        .filter(
+            Patient.department == patient.department,
+            Patient.status == "waiting"
+        )
+        .all()
+    )
+
+    waiting_patients.sort(
+        key=lambda p: (
+            PRIORITY_ORDER.get(
+                p.priority,
+                4
+            ),
+            p.token_number
+        )
+    )
+
+    position = None
+
+    for index, p in enumerate(waiting_patients):
+
+        if p.id == patient.id:
+            position = index + 1
+            break
+
+    if position is not None:
+        patients_ahead = position - 1
+    else:
+        patients_ahead = 0
+
+    estimated_wait = (
+        patients_ahead *
+        AVERAGE_CONSULTATION_TIME
+    )
+
+    current_patient = (
+        db.query(Patient)
+        .filter(
+            Patient.department == patient.department,
+            Patient.status == "called"
+        )
+        .order_by(
+            Patient.token_number.desc()
+        )
+        .first()
+    )
+
+    current_token = (
+        current_patient.token_number
+        if current_patient
+        else None
+    )
+
+    return {
+        "patient_id": patient.id,
+        "your_token": patient.token_number,
+        "department": patient.department,
+        "status": patient.status,
+        "priority": patient.priority,
+        "queue_position": position,
+        "patients_ahead": patients_ahead,
+        "current_token": current_token,
+        "estimated_wait_minutes": estimated_wait
+    }
