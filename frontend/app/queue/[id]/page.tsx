@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { apiUrl } from "@/lib/api";
 
 type Patient = {
   id: number;
@@ -56,7 +57,7 @@ export default function QueuePage() {
       // ----------------------------------------------
 
       const patientResponse = await fetch(
-        `http://127.0.0.1:8000/patients/${patientId}`
+        apiUrl(`/patients/${patientId}`)
       );
 
       if (!patientResponse.ok) {
@@ -73,7 +74,7 @@ export default function QueuePage() {
       // ----------------------------------------------
 
       const queueResponse = await fetch(
-        `http://127.0.0.1:8000/patients/${patientId}/queue-status`
+        apiUrl(`/patients/${patientId}/queue-status`)
       );
 
       if (!queueResponse.ok) {
@@ -588,4 +589,3 @@ export default function QueuePage() {
 
   );
 }
-

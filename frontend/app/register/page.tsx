@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiUrl } from "@/lib/api";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -96,7 +97,7 @@ export default function RegisterPage() {
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/patients",
+        apiUrl("/patients"),
         {
           method: "POST",
 

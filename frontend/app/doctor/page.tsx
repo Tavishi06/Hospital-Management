@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { apiUrl } from "@/lib/api";
 
 type Patient = {
   id: number;
@@ -59,8 +60,8 @@ export default function DoctorPortalPage() {
     const fetchMeta = async () => {
       try {
         const [deptRes, docRes] = await Promise.all([
-          fetch("http://127.0.0.1:8000/departments"),
-          fetch("http://127.0.0.1:8000/doctors"),
+          fetch(apiUrl("/departments")),
+          fetch(apiUrl("/doctors")),
         ]);
         if (deptRes.ok) {
           const deptData: DepartmentData[] = await deptRes.json();
@@ -98,7 +99,7 @@ export default function DoctorPortalPage() {
     if (!assignedDoctor) return;
     try {
       const res = await fetch(
-        `http://127.0.0.1:8000/doctors/${assignedDoctor.id}/toggle-availability`,
+        apiUrl(`/doctors/${assignedDoctor.id}/toggle-availability`),
         { method: "PUT" }
       );
       if (res.ok) {
@@ -122,7 +123,7 @@ export default function DoctorPortalPage() {
   const fetchDepartmentPatients = useCallback(async () => {
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/patients?department=${selectedDept}`
+        apiUrl(`/patients?department=${selectedDept}`)
       );
       if (!response.ok) {
         throw new Error(`Error ${response.status}`);
@@ -186,7 +187,7 @@ export default function DoctorPortalPage() {
     setMessage(null);
     try {
       const res = await fetch(
-        `http://127.0.0.1:8000/patients/call-next?department=${selectedDept}`,
+        apiUrl(`/patients/call-next?department=${selectedDept}`),
         { method: "PUT" }
       );
       const data = await res.json();
@@ -215,7 +216,7 @@ export default function DoctorPortalPage() {
     setMessage(null);
     try {
       const res = await fetch(
-        `http://127.0.0.1:8000/patients/${patientId}/${action}`,
+        apiUrl(`/patients/${patientId}/${action}`),
         { method: "PUT" }
       );
       if (!res.ok) throw new Error("Status update failed");

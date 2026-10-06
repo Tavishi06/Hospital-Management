@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { API_BASE_URL, apiUrl } from "@/lib/api";
 
 type OpdData = {
   department: string;
@@ -135,7 +136,7 @@ export default function Home() {
   const fetchOpds = useCallback(async (showRefreshing = false) => {
     if (showRefreshing) setIsRefreshing(true);
     try {
-      const response = await fetch("http://127.0.0.1:8000/opds");
+      const response = await fetch(apiUrl("/opds"));
       if (!response.ok) {
         throw new Error(`Server returned ${response.status}`);
       }
@@ -381,7 +382,7 @@ export default function Home() {
                 <div>
                   <p className="font-bold">⚠️ Queue Server Offline</p>
                   <p className="mt-1 text-xs text-rose-600">
-                    FastAPI backend is currently unreachable at http://127.0.0.1:8000.
+                    FastAPI backend is currently unreachable at {API_BASE_URL}.
                     Please start the backend server to view live data.
                   </p>
                 </div>

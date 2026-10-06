@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { API_BASE_URL, apiUrl } from "@/lib/api";
 import {
   AreaChart,
   Area,
@@ -82,9 +83,9 @@ export default function AdminDashboardPage() {
     if (manual) setIsRefreshing(true);
     try {
       const [ovRes, dlRes, anRes] = await Promise.all([
-        fetch("http://127.0.0.1:8000/admin/overview"),
-        fetch("http://127.0.0.1:8000/admin/department-load"),
-        fetch("http://127.0.0.1:8000/admin/analytics"),
+        fetch(apiUrl("/admin/overview")),
+        fetch(apiUrl("/admin/department-load")),
+        fetch(apiUrl("/admin/analytics")),
       ]);
 
       if (!ovRes.ok || !dlRes.ok || !anRes.ok) {
@@ -207,7 +208,7 @@ export default function AdminDashboardPage() {
         {/* ERROR NOTICE */}
         {error && (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-semibold text-rose-800">
-            ⚠️ {error} Ensure the backend server is running at http://127.0.0.1:8000.
+            ⚠️ {error} Ensure the backend server is running at {API_BASE_URL}.
           </div>
         )}
 

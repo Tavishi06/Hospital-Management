@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { apiUrl } from "@/lib/api";
 
 export default function CheckTokenPage() {
   const router = useRouter();
@@ -26,7 +27,7 @@ export default function CheckTokenPage() {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/patients/by-phone/${cleanPhone}`
+        apiUrl(`/patients/by-phone/${cleanPhone}`)
       );
 
       if (response.status === 404) {
