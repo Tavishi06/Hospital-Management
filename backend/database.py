@@ -35,10 +35,12 @@ def _postgres_driver_available():
 def _get_database_url():
     candidate = os.getenv("DATABASE_URL", "").strip().strip('"').strip("'")
     if candidate and "*" not in candidate:
-        if candidate.startswith("postgres://"):
-            candidate = f"postgresql://{candidate.removeprefix('postgres://')}"
         if candidate.startswith(("postgresql://", "postgres://")) and not _postgres_driver_available():
             return f"sqlite:///{Path(__file__).resolve().parent / 'queueless.db'}"
+        if candidate.startswith("postgres://"):
+            candidate = f"postgresql+psycopg2://{candidate.removeprefix('postgres://')}"
+        elif candidate.startswith("postgresql://"):
+            candidate = f"postgresql+psycopg2://{candidate.removeprefix('postgresql://')}"
         return candidate
 
     db_path = Path(__file__).resolve().parent / "queueless.db"
