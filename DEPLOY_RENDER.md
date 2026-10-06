@@ -9,10 +9,10 @@ The repository includes a Render Blueprint at `render.yaml`. It defines a FastAP
 3. Connect the GitHub repository and select the branch to deploy.
 4. Review the Blueprint resources (`queueless-api`, `queueless-web`, and `queueless-db`) and approve their creation.
 5. Wait for the database and both services to finish deploying.
-6. Open the `queueless-web` service URL. The frontend obtains the backend host from the Blueprint configuration.
-7. Check the backend health URL (the API service URL ending in `/`) and confirm it reports QueueLess as running.
+6. Open https://queueless-web.onrender.com. The frontend is configured to call the API at https://queueless-api-lvf5.onrender.com.
+7. Check https://queueless-api-lvf5.onrender.com/ and confirm the API responds.
 
-Render service names must stay `queueless-api` and `queueless-web` unless the corresponding `fromService` references in `render.yaml` are changed to match.
+If you change either service's public Render URL in its settings, update `NEXT_PUBLIC_API_URL` and `FRONTEND_ORIGINS` in `render.yaml` to match, then redeploy.
 
 ## Notes
 

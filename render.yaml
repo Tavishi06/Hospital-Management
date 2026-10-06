@@ -21,10 +21,7 @@ services:
           name: queueless-db
           property: connectionString
       - key: FRONTEND_ORIGINS
-        fromService:
-          type: web
-          name: queueless-web
-          property: host
+        value: https://queueless-web.onrender.com
 
   - type: web
     name: queueless-web
@@ -38,7 +35,4 @@ services:
       - key: NODE_VERSION
         value: 22.14.0
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: queueless-api
-          property: host
+        value: https://queueless-api-lvf5.onrender.com
